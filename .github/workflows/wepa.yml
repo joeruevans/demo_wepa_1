@@ -1,0 +1,53 @@
+name: CI Workflow
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+  report:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Upload test results to Xray
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.JIRA_API_TOKEN }}" \
+               -H "Content-Type: multipart/form-data" \
+               -F "file=@results.xml" \
+               -F "testExecKey=KEY-1234" \
+               -F "projectKey=PROJ" \
+               https://your-jira-domain.com/rest/raven/1.0/import/execution/junit
