@@ -1,14 +1,18 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node on Windows
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
-name: demo_wepa_1
+name: CI
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
+  workflow_dispatch:
+    inputs:
+      testExecKey:
+        description: 'TestExec key from Xray'
+        default: ''
+        required: true
+        type: string
+      projectKey:
+        description: 'Project key from Xray'
+        default: ''
+        required: true
+        type: string
 jobs:
   build:
 
@@ -16,37 +20,46 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [14.x, 15.x, 16.x]
+        node-version: [15.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
     - uses: actions/checkout@v2
+    - name: Output Inputs
+      run: echo "${{ toJSON(github.event.inputs) }}"
     - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
+      uses: actions/setup-node@v3
       with:
         node-version: ${{ matrix.node-version }}
-    - name: Install Node.js using Chocolatey
-      run: |
-        # Download and install Chocolatey
-        iex ((New-Object System.Net.WebClient).DownloadString('https://install.chocolatey.org/install.ps1'))
-        # Install Node.js using Chocolatey
-        choco install nodejs --version=${{ matrix.node-version }}
-    - name: Set Node.js Path
-      run: |
-        Set-Path -AppendVariable PATH "${env:ChocolateyInstall}\bin"
+        cache: 'npm'
     - run: |
-      npm install
-    - run: |
-      PLAYWRIGHT_JUNIT_OUTPUT_NAME=junit.xml npx playwright test --reporter=junit,line
-    - name: "Import results to Xray"
-      uses: mikepenz/xray-action@v2.3.0
+        npm install
+        npm i -D @playwright/test
+        npx playwright install 
+    - name: Run tests
+      continue-on-error: true
+      run: |  
+        PLAYWRIGHT_JUNIT_OUTPUT_NAME=xray-report.xml npx playwright test
+    - name: Output results file
+      run: |
+        cat xray-report.xml
+    - uses: actions/upload-artifact@v3
+      if: always()
+      name: Store test results
       with:
-        # Use API token instead of username/password
-        apiToken: ${{ secrets.JIRA_API_TOKEN }}
-        xrayCloud: "false"  # Assuming self-hosted Jira
-        xrayBaseUrl: ${{ secrets.JIRA_BASEURL }}
-        testFormat: "junit"
-        testPaths: "**/xray-report.xml"
-        testPlanKey: "${{ secrets.JIRA_TEST_PLAN_KEY }}"
-        projectKey: "${{ secrets.JIRA_PROJECT_KEY }}"
-        testEnvironments: "NODE_${{ matrix.node-version }}"
+        name: playwright-test-results
+        path: |
+          test-results/
+          xray-report.xml
+    - name: "Import results to Xray"
+      uses: mikepenz/xray-action@v2.4.5
+      with:
+         username: ${{ secrets.JIRA_USERNAME }}
+         password: ${{ secrets.JIRA_PASSWORD }}
+         xrayCloud: "false"
+         xrayBaseUrl: ${{ secrets.JIRA_BASEURL }}
+         testFormat: "junit"
+         testPaths: "**/xray-report.xml"
+         testPlanKey: "${{ inputs.testPlanKey }}"
+         projectKey: "${{ inputs.projectKey }}"
+         testEnvironments: "NODE_${{ matrix.node-version }}"
