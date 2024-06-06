@@ -54,8 +54,7 @@ jobs:
     - name: "Import results to Xray"
       uses: mikepenz/xray-action@v2.4.5
       with:
-         username: ${{ secrets.JIRA_USERNAME }}
-         password: ${{ secrets.JIRA_PASSWORD }}
+         apiToken: ${{ secrets.JIRA_API_TOKEN }}
          xrayCloud: "false"
          xrayBaseUrl: ${{ secrets.JIRA_BASEURL }}
          testFormat: "junit"
