@@ -52,7 +52,7 @@ jobs:
           test-results/
           xray-report.xml
     - name: "Import results to Xray"
-      uses: mikepenz/xray-action@v2.4.5
+      uses: joeruevans/xray-action@v2.4.5
       with:
          apiToken: ${{ secrets.JIRA_API_TOKEN }}
          xrayCloud: "false"
